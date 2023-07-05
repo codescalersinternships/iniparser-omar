@@ -102,6 +102,10 @@ func (ini *INIParser) Get(sectionName, key string) string {
 }
 
 func (ini *INIParser) Set(sectionName, key, value string) {
+	sectionName = strings.Trim(sectionName, " ")
+	if len(sectionName) == 0 {
+		panic("INVALID INI FILE FORMAT: SECTION HEADER CAN'T BE EMPTY")
+	}
 	if ini.data[sectionName] == nil {
 		ini.data[ini.sectionNames[len(ini.sectionNames)-1]].ReadLine("") // add new line
 		// add new section, key and value
@@ -109,7 +113,8 @@ func (ini *INIParser) Set(sectionName, key, value string) {
 		ini.data[sectionName] = &Section{}
 		ini.data[sectionName].Init()
 	}
-	ini.data[sectionName].Set(key, value)
+	err := ini.data[sectionName].Set(key, value)
+	check(err)
 }
 
 func (ini *INIParser) ToString() string {

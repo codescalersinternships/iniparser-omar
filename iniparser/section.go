@@ -26,6 +26,9 @@ func (sec *Section) ReadLine(line string) error {
 		splitRet := strings.Split(line, "=")
 		key := strings.Trim(splitRet[0], " ")
 		value := strings.Trim(splitRet[1], " ")
+		if len(key) == 0 || len(value) == 0 {
+			return errors.New("INVALID INI FILE FORMAT: KEY OR VALUE CAN'T BE EMPTY")
+		}
 
 		sec.lines = append(sec.lines, key)
 		sec.data[key] = value
@@ -38,14 +41,19 @@ func (sec *Section) Get(key string) string {
 	return sec.data[key]
 }
 
-func (sec *Section) Set(key, value string) {
+func (sec *Section) Set(key, value string) error {
 	key = strings.Trim(key, " ")
 	value = strings.Trim(value, " ")
+	if len(key) == 0 || len(value) == 0 {
+		return errors.New("INVALID INI FILE FORMAT: KEY OR VALUE CAN'T BE EMPTY")
+	}
 
 	if _, ok := sec.data[key]; !ok {
 		sec.lines = append(sec.lines, key)
 	}
 	sec.data[key] = value
+	
+	return nil
 }
 
 func (sec *Section) GetSection() map[string]string {
@@ -66,4 +74,3 @@ func (sec *Section) GetSectionINI() []string {
 
 	return iniLines
 }
-
