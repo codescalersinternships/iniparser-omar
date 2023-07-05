@@ -18,7 +18,7 @@ type INIParser struct {
 	data         map[string]*Section
 }
 
-func (ini *INIParser) Init() {
+func (ini *INIParser) init() {
 	ini.data = map[string]*Section{}
 }
 
@@ -31,6 +31,7 @@ func (ini *INIParser) loadData(lines []string) error {
 		}
 	}
 
+	ini.init()
 	for _, line := range lines {
 		if len(line) == 0 || line[0] != '[' {
 			if len(ini.sectionNames) == 0 {
