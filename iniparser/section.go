@@ -1,7 +1,6 @@
 package iniparser
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -27,14 +26,14 @@ func (sec *section) readLine(line string) error {
 		key := strings.Trim(splitRet[0], " ")
 		value := strings.Trim(splitRet[1], " ")
 		if len(key) == 0 || len(value) == 0 {
-			return errors.New("INVALID INI FILE FORMAT: KEY OR VALUE CAN'T BE EMPTY")
+			return errInvalidFormat
 		}
 
 		sec.lines = append(sec.lines, key)
 		sec.data[key] = value
 		return nil
 	}
-	return errors.New("INVALID INI FILE FORMAT")
+	return errInvalidFormat
 }
 
 func (sec *section) get(key string) string {
@@ -45,7 +44,7 @@ func (sec *section) set(key, value string) error {
 	key = strings.Trim(key, " ")
 	value = strings.Trim(value, " ")
 	if len(key) == 0 || len(value) == 0 {
-		return errors.New("INVALID INI FILE FORMAT: KEY OR VALUE CAN'T BE EMPTY")
+		return errInvalidFormat
 	}
 
 	if _, ok := sec.data[key]; !ok {

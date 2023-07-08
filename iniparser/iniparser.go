@@ -7,11 +7,7 @@ import (
 	"strings"
 )
 
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
+var errInvalidFormat = errors.New("INVALID INI FILE FORMAT")
 
 type INIParser struct {
 	sectionNames []string
@@ -35,7 +31,7 @@ func (ini *INIParser) loadData(lines []string) error {
 	for _, line := range lines {
 		if len(line) == 0 || line[0] != '[' {
 			if len(ini.sectionNames) == 0 {
-				return errors.New("INVALID INI FILE FORMAT: MUST BEGIN WITH SECTION HEADER")
+				return errInvalidFormat
 			}
 			currentSection := ini.sectionNames[len(ini.sectionNames)-1]
 			err := ini.data[currentSection].readLine(line)
@@ -45,12 +41,12 @@ func (ini *INIParser) loadData(lines []string) error {
 		} else {
 			line = strings.Trim(line, " ")
 			if len(line) <= 2 || line[len(line)-1] != ']' {
-				return errors.New("INVALID INI FILE FORMAT")
+				return errInvalidFormat
 			}
 			sectionName := line[1 : len(line)-1]
 			sectionName = strings.Trim(sectionName, " ")
 			if len(sectionName) == 0 {
-				return errors.New("INVALID INI FILE FORMAT: SECTION HEADER CAN'T BE EMPTY")
+				return errInvalidFormat
 			}
 			ini.sectionNames = append(ini.sectionNames, sectionName)
 			ini.data[sectionName] = &section{}
@@ -60,15 +56,17 @@ func (ini *INIParser) loadData(lines []string) error {
 	return nil
 }
 
-func (ini *INIParser) LoadFromString(str string) {
+func (ini *INIParser) LoadFromString(str string) error {
 	lines := strings.Split(str, "\n")
 	err := ini.loadData(lines)
-	check(err)
+	return err
 }
 
-func (ini *INIParser) LoadFromFile(filePath string) {
+func (ini *INIParser) LoadFromFile(filePath string) error {
 	readFile, err := os.Open(filePath)
-	check(err)
+	if err != nil {
+		return err
+	}
 	defer readFile.Close()
 
 	fileScanner := bufio.NewScanner(readFile)
@@ -80,7 +78,7 @@ func (ini *INIParser) LoadFromFile(filePath string) {
 	}
 
 	err = ini.loadData(lines)
-	check(err)
+	return err
 }
 
 func (ini *INIParser) GetSectionNames() []string {
@@ -102,20 +100,19 @@ func (ini *INIParser) Get(sectionName, key string) string {
 	return ini.data[sectionName].get(key)
 }
 
-func (ini *INIParser) Set(sectionName, key, value string) {
+func (ini *INIParser) Set(sectionName, key, value string) error {
 	sectionName = strings.Trim(sectionName, " ")
 	if len(sectionName) == 0 {
-		panic("INVALID INI FILE FORMAT: SECTION HEADER CAN'T BE EMPTY")
+		return errInvalidFormat
 	}
 	if ini.data[sectionName] == nil {
-		ini.data[ini.sectionNames[len(ini.sectionNames)-1]].readLine("") // add new line
 		// add new section, key and value
 		ini.sectionNames = append(ini.sectionNames, sectionName)
 		ini.data[sectionName] = &section{}
 		ini.data[sectionName].init()
 	}
 	err := ini.data[sectionName].set(key, value)
-	check(err)
+	return err
 }
 
 func (ini *INIParser) ToString() string {
@@ -127,7 +124,7 @@ func (ini *INIParser) ToString() string {
 	return str
 }
 
-func (ini *INIParser) SaveToFile(filePath string) {
+func (ini *INIParser) SaveToFile(filePath string) error {
 	err := os.WriteFile(filePath, []byte(ini.ToString()), 0644)
-	check(err)
+	return err
 }
