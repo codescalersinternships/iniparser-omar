@@ -6,16 +6,16 @@ import (
 	"strings"
 )
 
-type Section struct {
+type section struct {
 	lines []string // key or comment or empty
 	data  map[string]string
 }
 
-func (sec *Section) Init() {
+func (sec *section) init() {
 	sec.data = map[string]string{}
 }
 
-func (sec *Section) ReadLine(line string) error {
+func (sec *section) readLine(line string) error {
 	line = strings.Trim(line, " ")
 	if len(line) == 0 || line[0] == ';' {
 		sec.lines = append(sec.lines, line)
@@ -37,11 +37,11 @@ func (sec *Section) ReadLine(line string) error {
 	return errors.New("INVALID INI FILE FORMAT")
 }
 
-func (sec *Section) Get(key string) string {
+func (sec *section) get(key string) string {
 	return sec.data[key]
 }
 
-func (sec *Section) Set(key, value string) error {
+func (sec *section) set(key, value string) error {
 	key = strings.Trim(key, " ")
 	value = strings.Trim(value, " ")
 	if len(key) == 0 || len(value) == 0 {
@@ -52,15 +52,15 @@ func (sec *Section) Set(key, value string) error {
 		sec.lines = append(sec.lines, key)
 	}
 	sec.data[key] = value
-	
+
 	return nil
 }
 
-func (sec *Section) GetSection() map[string]string {
+func (sec *section) getSection() map[string]string {
 	return sec.data
 }
 
-func (sec *Section) GetSectionINI() []string {
+func (sec *section) getSectionINI() []string {
 	var iniLines []string
 	for _, line := range sec.lines {
 		if len(line) == 0 || line[0] == ';' {

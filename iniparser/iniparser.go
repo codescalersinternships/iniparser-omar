@@ -15,11 +15,11 @@ func check(e error) {
 
 type INIParser struct {
 	sectionNames []string
-	data         map[string]*Section
+	data         map[string]*section
 }
 
 func (ini *INIParser) init() {
-	ini.data = map[string]*Section{}
+	ini.data = map[string]*section{}
 }
 
 func (ini *INIParser) loadData(lines []string) error {
@@ -38,7 +38,7 @@ func (ini *INIParser) loadData(lines []string) error {
 				return errors.New("INVALID INI FILE FORMAT: MUST BEGIN WITH SECTION HEADER")
 			}
 			currentSection := ini.sectionNames[len(ini.sectionNames)-1]
-			err := ini.data[currentSection].ReadLine(line)
+			err := ini.data[currentSection].readLine(line)
 			if err != nil {
 				return err
 			}
@@ -53,8 +53,8 @@ func (ini *INIParser) loadData(lines []string) error {
 				return errors.New("INVALID INI FILE FORMAT: SECTION HEADER CAN'T BE EMPTY")
 			}
 			ini.sectionNames = append(ini.sectionNames, sectionName)
-			ini.data[sectionName] = &Section{}
-			ini.data[sectionName].Init()
+			ini.data[sectionName] = &section{}
+			ini.data[sectionName].init()
 		}
 	}
 	return nil
@@ -90,7 +90,7 @@ func (ini *INIParser) GetSectionNames() []string {
 func (ini *INIParser) GetSections() map[string]map[string]string {
 	serializedINI := map[string]map[string]string{}
 	for _, name := range ini.sectionNames {
-		serializedINI[name] = ini.data[name].GetSection()
+		serializedINI[name] = ini.data[name].getSection()
 	}
 	return serializedINI
 }
@@ -99,7 +99,7 @@ func (ini *INIParser) Get(sectionName, key string) string {
 	if ini.data[sectionName] == nil {
 		return ""
 	}
-	return ini.data[sectionName].Get(key)
+	return ini.data[sectionName].get(key)
 }
 
 func (ini *INIParser) Set(sectionName, key, value string) {
@@ -108,13 +108,13 @@ func (ini *INIParser) Set(sectionName, key, value string) {
 		panic("INVALID INI FILE FORMAT: SECTION HEADER CAN'T BE EMPTY")
 	}
 	if ini.data[sectionName] == nil {
-		ini.data[ini.sectionNames[len(ini.sectionNames)-1]].ReadLine("") // add new line
+		ini.data[ini.sectionNames[len(ini.sectionNames)-1]].readLine("") // add new line
 		// add new section, key and value
 		ini.sectionNames = append(ini.sectionNames, sectionName)
-		ini.data[sectionName] = &Section{}
-		ini.data[sectionName].Init()
+		ini.data[sectionName] = &section{}
+		ini.data[sectionName].init()
 	}
-	err := ini.data[sectionName].Set(key, value)
+	err := ini.data[sectionName].set(key, value)
 	check(err)
 }
 
@@ -122,7 +122,7 @@ func (ini *INIParser) ToString() string {
 	var str string
 	for _, name := range ini.sectionNames {
 		str += "[" + name + "]\n"
-		str += strings.Join(ini.data[name].GetSectionINI(), "\n") + "\n"
+		str += strings.Join(ini.data[name].getSectionINI(), "\n") + "\n"
 	}
 	return str
 }
