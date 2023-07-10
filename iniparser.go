@@ -10,10 +10,16 @@ import (
 	"strings"
 )
 
-var ErrInvalidFormat = errors.New("invalid ini file format")
-var ErrNoGlobalDataAllowed = errors.New("global data is not supported")
-var ErrInvalidFileExtension = errors.New("ErrInvalidFileExtension")
+// Generic file system errors.
+// Errors returned by file systems can be tested against these errors
+// using errors.Is.
+var (
+	ErrInvalidFormat        = errors.New("invalid ini file format")
+	ErrNoGlobalDataAllowed  = errors.New("global data is not supported")
+	ErrInvalidFileExtension = errors.New("ErrInvalidFileExtension")
+)
 
+// An INIParser provides parser to ini files.
 type INIParser struct {
 	data map[string]*section
 }
@@ -59,11 +65,13 @@ func (ini *INIParser) loadData(reader io.Reader) error {
 	return nil
 }
 
+// LoadFromString loads the given string to the parser.
 func (ini *INIParser) LoadFromString(str string) error {
 	reader := strings.NewReader(str)
 	return ini.loadData(reader)
 }
 
+// LoadFromFile loads the given string to the parser.
 func (ini *INIParser) LoadFromFile(filePath string) error {
 	_, err := os.Stat(filePath)
 	if err != nil {
@@ -81,6 +89,7 @@ func (ini *INIParser) LoadFromFile(filePath string) error {
 	return ini.loadData(reader)
 }
 
+// GetSectionNames gets slice of section names of loaded data.
 func (ini *INIParser) GetSectionNames() []string {
 	if ini.data == nil {
 		ini.data = map[string]*section{}
@@ -93,6 +102,7 @@ func (ini *INIParser) GetSectionNames() []string {
 	return keys
 }
 
+// GetSections gets ini data parsed as 'map[string]map[string]string'.
 func (ini *INIParser) GetSections() map[string]map[string]string {
 	if ini.data == nil {
 		ini.data = map[string]*section{}
@@ -105,6 +115,9 @@ func (ini *INIParser) GetSections() map[string]map[string]string {
 	return serializedINI
 }
 
+// Get gets value given section name and key.
+// returns tuple of (value, true) incase value found.
+// returns tuple of (value, false) incase value is not found.
 func (ini *INIParser) Get(sectionName, key string) (string, bool) {
 	if ini.data == nil {
 		ini.data = map[string]*section{}
@@ -116,6 +129,8 @@ func (ini *INIParser) Get(sectionName, key string) (string, bool) {
 	return ini.data[sectionName].get(key)
 }
 
+// Set sets or updates given section name and key.
+// creates new section and new key if not exist.
 func (ini *INIParser) Set(sectionName, key, value string) {
 	if ini.data == nil {
 		ini.data = map[string]*section{}
@@ -128,6 +143,7 @@ func (ini *INIParser) Set(sectionName, key, value string) {
 	ini.data[sectionName].set(key, value)
 }
 
+// String converts loaded data to string.
 func (ini *INIParser) String() string {
 	if ini.data == nil {
 		ini.data = map[string]*section{}
@@ -141,15 +157,12 @@ func (ini *INIParser) String() string {
 	return str
 }
 
+// saveToFile saves loaded data to file.
 func (ini *INIParser) SaveToFile(filePath string) error {
-	_, err := os.Stat(filePath)
-	if err != nil {
-		return err
-	}
 	if fileExt := filepath.Ext(filePath); fileExt != ".ini" {
 		return fmt.Errorf("%w: %s", ErrInvalidFileExtension, fileExt)
 	}
-	
+
 	if ini.data == nil {
 		ini.data = map[string]*section{}
 	}

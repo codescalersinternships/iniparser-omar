@@ -230,30 +230,50 @@ func TestLoadFromFile(t *testing.T) {
 }
 
 func TestGetSectionNames(t *testing.T) {
-	dataSample := validINIDataSample1()
-	ini := INIParser{data: dataSample}
-	got := ini.GetSectionNames()
-	sort.Strings(got)
-	want := []string{"", "section 1", "section 2"}
+	t.Run("get before load data", func(t *testing.T) {
+		ini := INIParser{}
+		got := ini.GetSectionNames()
+		want := []string{}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("got %q want %q", got, want)
+		}
+	})
+	t.Run("get data after load data", func(t *testing.T) {
+		dataSample := validINIDataSample1()
+		ini := INIParser{data: dataSample}
+		got := ini.GetSectionNames()
+		sort.Strings(got)
+		want := []string{"", "section 1", "section 2"}
 
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %v want %v", got, want)
-	}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v want %v", got, want)
+		}
+	})
 }
 
 func TestGetSections(t *testing.T) {
-	dataSample := validINIDataSample1()
-	ini := INIParser{data: dataSample}
-	got := ini.GetSections()
-	want := map[string]map[string]string{
-		"section 1": {"key key": "value value"},
-		"section 2": {},
-		"":          {"": ""},
-	}
+	t.Run("get after load data", func(t *testing.T) {
+		dataSample := validINIDataSample1()
+		ini := INIParser{data: dataSample}
+		got := ini.GetSections()
+		want := map[string]map[string]string{
+			"section 1": {"key key": "value value"},
+			"section 2": {},
+			"":          {"": ""},
+		}
 
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %v want %v", got, want)
-	}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v want %v", got, want)
+		}
+	})
+	t.Run("get before load data", func(t *testing.T) {
+		ini := INIParser{}
+		got := ini.GetSections()
+
+		if len(got) != 0 {
+			t.Errorf("expected to get empty map")
+		}
+	})
 }
 
 func TestGet(t *testing.T) {
@@ -299,6 +319,18 @@ func TestGet(t *testing.T) {
 			}
 		})
 	}
+	t.Run("get before load data", func(t *testing.T) {
+		ini := INIParser{}
+		gotValue, gotIsFound := ini.Get("anything", "anything")
+
+		if gotValue != "" {
+			t.Errorf("value: got %q want empty string", gotValue)
+		}
+		if gotIsFound != false {
+			t.Errorf("is found: got is %t want %t", gotIsFound, false)
+		}
+		
+	})
 }
 
 func TestSet(t *testing.T) {
@@ -310,6 +342,17 @@ func TestSet(t *testing.T) {
 		value    string
 		expected map[string]*section
 	}{
+		{
+			name:    "set new section and key before load data",
+			section: "new section",
+			key:     "new key",
+			value:   "new value",
+			expected: map[string]*section{
+				"new section": {data: map[string]string{
+					"new key": "new value",
+				}},
+			},
+		},
 		{
 			name:    "set new section and key",
 			data:    map[string]*section{},
@@ -370,43 +413,52 @@ func TestSet(t *testing.T) {
 }
 
 func TestString(t *testing.T) {
-	dataSample := validINIDataSample1()
-	ini := INIParser{data: dataSample}
-	got := ini.String()
-	want := `[section 1]
-key key = value value
-[section 2]
-[]
- = 
-`
-	if got != want {
-		t.Errorf("got %q want %q", got, want)
-	}
+	t.Run("get string after load data", func(t *testing.T) {
+		dataSample := validINIDataSample1()
+		ini := INIParser{data: dataSample}
+		got := ini.String()
+	
+		ini2 := INIParser{}
+		ini2.LoadFromString(got)
+	
+		assertEqualData(t, ini2.data, dataSample)
+	})
+	t.Run("get string before load data", func(t *testing.T) {
+		ini := INIParser{}
+		got := ini.String()
+	
+		if got != "" {
+			t.Errorf("got %q want empty string", got)
+		}
+	})
 }
 
 func TestSaveToFile(t *testing.T) {
-	t.Run("save to valid file", func(t *testing.T) {
+	t.Run("save to file before load data", func(t *testing.T) {
+		testFilePath := "testdata/testfile.ini"
+		ini := INIParser{}
+		err := ini.SaveToFile(testFilePath)
+		assertNoErr(t, err)
+
+		ini2 := INIParser{}
+		ini2.LoadFromFile(testFilePath)
+
+		assertEqualData(t, ini2.data, map[string]*section{})
+	})
+	
+	t.Run("save to file", func(t *testing.T) {
 		testFilePath := "testdata/testfile.ini"
 		dataSample := validINIDataSample1()
 		ini := INIParser{data: dataSample}
 		err := ini.SaveToFile(testFilePath)
 		assertNoErr(t, err)
-	
+
 		ini2 := INIParser{}
 		ini2.LoadFromFile(testFilePath)
-	
+
 		assertEqualData(t, ini2.data, dataSample)
 	})
-	t.Run("save to not exist file", func(t *testing.T) {
-		testFilePath := "notExist.ini"
-		dataSample := validINIDataSample1()
-		ini := INIParser{data: dataSample}
-		err := ini.SaveToFile(testFilePath)
-		assertErrFound(t, err)
-		if !os.IsNotExist(err) {
-			t.Errorf("expected to get not found error")
-		}
-	})
+
 	t.Run("save to file has not ini extension", func(t *testing.T) {
 		testFilePath := "README.md"
 		dataSample := validINIDataSample1()

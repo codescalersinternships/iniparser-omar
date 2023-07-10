@@ -3,7 +3,6 @@ package iniparser
 import (
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 	"testing"
 )
@@ -81,6 +80,14 @@ func TestSectionGet(t *testing.T) {
 			t.Errorf("got %q exists and should not be exist", key)
 		}
 	})
+	t.Run("get value from key not exist before load data", func(t *testing.T) {
+		sec := section{}
+		key := "not exist"
+		_, exist := sec.get(key)
+		if exist {
+			t.Errorf("got %q exists and should not be exist", key)
+		}
+	})
 }
 
 func TestSectionSet(t *testing.T) {
@@ -123,15 +130,15 @@ func TestSectionGetSection(t *testing.T) {
 }
 
 func TestSectionString(t *testing.T) {
-	sec := section{data: validSectionDataSample1()}
+	dataSample := validSectionDataSample1()
+	sec := section{data: dataSample}
 	got := sec.string()
 
-	gotSliced := strings.Split(got, "\n")
-	wantSliced := strings.Split(validSectionDataString1, "\n")
-	sort.Strings(gotSliced)
-	sort.Strings(wantSliced)
-
-	if !reflect.DeepEqual(gotSliced, wantSliced) {
+	sec2 := section{}
+	for _, line := range strings.Split(got, "\n") {
+		sec2.addLine(line)
+	}
+	if !reflect.DeepEqual(sec2.data, dataSample) {
 		t.Errorf("got %q want %q", got, validSectionDataString1)
 	}
 }
