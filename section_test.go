@@ -1,6 +1,7 @@
 package iniparser
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -11,14 +12,14 @@ func validSectionDataSample1() map[string]string {
 	return map[string]string{
 		"key1": "value1",
 		"key2": "value2",
-		"":     "",
+		"key3":     "",
 	}
 }
 func validSectionDataSample2() map[string]string {
 	return map[string]string{
 		"key1": "value1-2",
 		"key2": "value2-2",
-		"":     "",
+		"key3":     "",
 	}
 }
 
@@ -38,7 +39,7 @@ func TestSectionAddLine(t *testing.T) {
 		assertNoErr(t, err)
 		err = sec.addLine("")
 		assertNoErr(t, err)
-		err = sec.addLine("=")
+		err = sec.addLine("key3=")
 		assertNoErr(t, err)
 		want := validSectionDataSample1()
 
@@ -52,6 +53,17 @@ func TestSectionAddLine(t *testing.T) {
 		err := sec.addLine(line)
 		assertErrFound(t, err)
 		want := fmt.Errorf(errInvalidLine, ErrInvalidFormat, line)
+
+		if err.Error() != want.Error() {
+			t.Errorf("got %q want %q", err.Error(), want)
+		}
+	})
+	t.Run("add empty key", func(t *testing.T) {
+		sec := section{}
+		line := "= value"
+		err := sec.addLine(line)
+		assertErrFound(t, err)
+		want := fmt.Errorf(errInvalidLine, ErrKeyCantBeEmpty, line)
 
 		if err.Error() != want.Error() {
 			t.Errorf("got %q want %q", err.Error(), want)
@@ -91,15 +103,27 @@ func TestSectionGet(t *testing.T) {
 }
 
 func TestSectionSet(t *testing.T) {
+	t.Run("set value at empty key", func(t *testing.T) {
+		sec := section{}
+		err := sec.set("", "value")
+		assertErrFound(t, err)
+
+		if !errors.Is(err, ErrKeyCantBeEmpty) {
+			t.Errorf("got %q want %q", err.Error(), ErrKeyCantBeEmpty.Error())
+		}
+	})
 	t.Run("set not exist key and value", func(t *testing.T) {
 		dataSample := validSectionDataSample1()
 		sec := section{}
 		key1 := "key1"
 		key2 := "key2"
-		key3 := ""
-		sec.set(key1, dataSample[key1])
-		sec.set(key2, dataSample[key2])
-		sec.set(key3, dataSample[key3])
+		key3 := "key3"
+		err := sec.set(key1, dataSample[key1])
+		assertNoErr(t, err)
+		err = sec.set(key2, dataSample[key2])
+		assertNoErr(t, err)
+		err = sec.set(key3, dataSample[key3])
+		assertNoErr(t, err)
 
 		if !reflect.DeepEqual(sec.data, dataSample) {
 			t.Errorf("got %v want %v", sec.data, dataSample)
@@ -111,8 +135,10 @@ func TestSectionSet(t *testing.T) {
 		sec := section{data: dataSample1}
 		key1 := "key1"
 		key2 := "key2"
-		sec.set(key1, dataSample2[key1])
-		sec.set(key2, dataSample2[key2])
+		err := sec.set(key1, dataSample2[key1])
+		assertNoErr(t, err)
+		err = sec.set(key2, dataSample2[key2])
+		assertNoErr(t, err)
 
 		if !reflect.DeepEqual(sec.data, dataSample2) {
 			t.Errorf("got %v want %v", sec.data, dataSample2)

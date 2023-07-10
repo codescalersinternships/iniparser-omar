@@ -14,9 +14,11 @@ import (
 // Errors returned by file systems can be tested against these errors
 // using errors.Is.
 var (
-	ErrInvalidFormat        = errors.New("invalid ini file format")
-	ErrNoGlobalDataAllowed  = errors.New("global data is not supported")
-	ErrInvalidFileExtension = errors.New("ErrInvalidFileExtension")
+	ErrInvalidFormat          = errors.New("invalid ini file format")
+	ErrNoGlobalDataAllowed    = errors.New("global data is not supported")
+	ErrInvalidFileExtension   = errors.New("file extension should be .ini")
+	ErrKeyCantBeEmpty         = errors.New("key can't be empty")
+	ErrSectionNameCantBeEmpty = errors.New("section name can't be empty")
 )
 
 // An INIParser provides parser to ini files.
@@ -58,6 +60,9 @@ func (ini *INIParser) loadData(reader io.Reader) error {
 			}
 			sectionName := line[1 : len(line)-1]
 			sectionName = strings.TrimSpace(sectionName)
+			if sectionName == "" {
+				return ErrSectionNameCantBeEmpty
+			}
 			ini.data[sectionName] = &section{}
 			lastSectionName = sectionName
 		}
@@ -131,16 +136,24 @@ func (ini *INIParser) Get(sectionName, key string) (string, bool) {
 
 // Set sets or updates given section name and key.
 // creates new section and new key if not exist.
-func (ini *INIParser) Set(sectionName, key, value string) {
+func (ini *INIParser) Set(sectionName, key, value string) error {
 	if ini.data == nil {
 		ini.data = map[string]*section{}
 	}
 
 	sectionName = strings.TrimSpace(sectionName)
 	if ini.data[sectionName] == nil {
+		if sectionName == "" {
+			return ErrSectionNameCantBeEmpty
+		}
 		ini.data[sectionName] = &section{}
 	}
+	if key == "" {
+		return ErrKeyCantBeEmpty
+	}
+
 	ini.data[sectionName].set(key, value)
+	return nil
 }
 
 // String converts loaded data to string.

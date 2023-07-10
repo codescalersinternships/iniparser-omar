@@ -14,7 +14,7 @@ func validINIDataSample1() map[string]*section {
 	return map[string]*section{
 		"section 1": {data: map[string]string{"key key": "value value"}},
 		"section 2": {data: map[string]string{}},
-		"":          {data: map[string]string{"": ""}},
+		"section 3": {data: map[string]string{"key": ""}},
 	}
 }
 
@@ -24,8 +24,8 @@ key key = value value
 ;comment
 [section 2]
 
-[]
- = 
+[section 3]
+key = 
 `
 
 func TestLoadData(t *testing.T) {
@@ -65,6 +65,20 @@ func TestLoadData(t *testing.T) {
 			key key  value value
 			`,
 			err: ErrInvalidFormat,
+		}, {
+			name: "invalid format: empty section name",
+			input: `
+			[]
+			key key = value value
+			`,
+			err: ErrSectionNameCantBeEmpty,
+		}, {
+			name: "invalid format: empty key",
+			input: `
+			[section name]
+			   = value value
+			`,
+			err: ErrKeyCantBeEmpty,
 		},
 	}
 
@@ -243,7 +257,7 @@ func TestGetSectionNames(t *testing.T) {
 		ini := INIParser{data: dataSample}
 		got := ini.GetSectionNames()
 		sort.Strings(got)
-		want := []string{"", "section 1", "section 2"}
+		want := []string{"section 1", "section 2", "section 3"}
 
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("got %v want %v", got, want)
@@ -259,7 +273,7 @@ func TestGetSections(t *testing.T) {
 		want := map[string]map[string]string{
 			"section 1": {"key key": "value value"},
 			"section 2": {},
-			"":          {"": ""},
+			"section 3": {"key": ""},
 		}
 
 		if !reflect.DeepEqual(got, want) {
@@ -329,7 +343,7 @@ func TestGet(t *testing.T) {
 		if gotIsFound != false {
 			t.Errorf("is found: got is %t want %t", gotIsFound, false)
 		}
-		
+
 	})
 }
 
@@ -388,26 +402,50 @@ func TestSet(t *testing.T) {
 					"new key": "new value",
 				}},
 			},
-		}, {
-			name:    "set empty section name, key and value",
-			data:    map[string]*section{},
+		},
+	}
+
+	invalidTestCases := []struct {
+		name    string
+		section string
+		key     string
+		value   string
+		err     error
+	}{
+		{
+			name:    "set empty section name",
 			section: "",
+			key:     "key",
+			value:   "value",
+			err:     ErrSectionNameCantBeEmpty,
+		},
+		{
+			name:    "set empty key",
+			section: "section name",
 			key:     "",
-			value:   "",
-			expected: map[string]*section{
-				"": {data: map[string]string{
-					"": "",
-				}},
-			},
+			value:   "value",
+			err:     ErrKeyCantBeEmpty,
 		},
 	}
 
 	for _, tc := range validTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ini := INIParser{data: tc.data}
-			ini.Set(tc.section, tc.key, tc.value)
+			err := ini.Set(tc.section, tc.key, tc.value)
+			assertNoErr(t, err)
 			expected := tc.expected
 			assertEqualData(t, ini.data, expected)
+		})
+	}
+
+	for _, tc := range invalidTestCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ini := INIParser{}
+			err := ini.Set(tc.section, tc.key, tc.value)
+			assertErrFound(t, err)
+			if !errors.Is(err, tc.err) {
+				t.Errorf("got %q want %q", err.Error(), tc.err.Error())
+			}
 		})
 	}
 }
@@ -417,16 +455,16 @@ func TestString(t *testing.T) {
 		dataSample := validINIDataSample1()
 		ini := INIParser{data: dataSample}
 		got := ini.String()
-	
+
 		ini2 := INIParser{}
 		ini2.LoadFromString(got)
-	
+
 		assertEqualData(t, ini2.data, dataSample)
 	})
 	t.Run("get string before load data", func(t *testing.T) {
 		ini := INIParser{}
 		got := ini.String()
-	
+
 		if got != "" {
 			t.Errorf("got %q want empty string", got)
 		}
@@ -445,7 +483,7 @@ func TestSaveToFile(t *testing.T) {
 
 		assertEqualData(t, ini2.data, map[string]*section{})
 	})
-	
+
 	t.Run("save to file", func(t *testing.T) {
 		testFilePath := "testdata/testfile.ini"
 		dataSample := validINIDataSample1()
