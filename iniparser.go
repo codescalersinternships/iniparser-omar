@@ -11,62 +11,78 @@ import (
 )
 
 // Generic file system errors.
-// Errors returned by file systems can be tested against these errors
-// using errors.Is.
 var (
-	ErrInvalidFormat          = errors.New("invalid ini file format")
-	ErrNoGlobalDataAllowed    = errors.New("global data is not supported")
-	ErrInvalidFileExtension   = errors.New("file extension should be .ini")
-	ErrKeyCantBeEmpty         = errors.New("key can't be empty")
-	ErrSectionNameCantBeEmpty = errors.New("section name can't be empty")
+	ErrInvalidFormat           = errors.New("invalid ini file format")
+	ErrNoGlobalDataAllowed     = errors.New("global data is not supported")
+	ErrInvalidFileExtension    = errors.New("file extension should be .ini")
+	ErrKeyCantBeEmpty          = errors.New("key can't be empty")
+	ErrKeyMustBeUnique         = errors.New("key must be unique")
+	ErrSectionNameCantBeEmpty  = errors.New("section name can't be empty")
+	ErrSectionNameMustBeUnique = errors.New("section name must be unique")
 )
+
+type section map[string]string
 
 // An INIParser provides parser to ini files.
 type INIParser struct {
-	data map[string]*section
+	data map[string]section
+}
+
+func NewINIParser() INIParser {
+	return INIParser{
+		data: map[string]section{},
+	}
 }
 
 func (ini *INIParser) loadData(reader io.Reader) error {
 	fileScanner := bufio.NewScanner(reader)
 	fileScanner.Split(bufio.ScanLines)
-	var lines []string
+
+	currentSectionName := ""
 	for fileScanner.Scan() {
-		lines = append(lines, fileScanner.Text())
-	}
+		line := strings.TrimSpace(fileScanner.Text())
 
-	// remove empty lines at the beginning of the file
-	for i := range lines {
-		if lines[i] != "" {
-			lines = lines[i:]
-			break
+		// empty line or comment
+		if len(line) == 0 || line[0] == ';' || line[0] == '#' {
+			continue
 		}
-	}
 
-	ini.data = map[string]*section{}
-	var lastSectionName string
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if len(line) == 0 || line[0] != '[' { // not section definition line
-			if len(ini.data) == 0 {
-				return ErrNoGlobalDataAllowed
-			}
-			err := ini.data[lastSectionName].addLine(line)
-			if err != nil {
-				return err
-			}
-		} else {
-			if len(line) < 2 || line[len(line)-1] != ']' {
-				return fmt.Errorf(errInvalidLine, ErrInvalidFormat, line)
-			}
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
 			sectionName := line[1 : len(line)-1]
-			sectionName = strings.TrimSpace(sectionName)
+
 			if sectionName == "" {
 				return ErrSectionNameCantBeEmpty
 			}
-			ini.data[sectionName] = &section{}
-			lastSectionName = sectionName
+			if ini.data[sectionName] != nil {
+				return fmt.Errorf("%w, section = %q", ErrSectionNameMustBeUnique, sectionName)
+			}
+
+			ini.data[sectionName] = map[string]string{}
+			currentSectionName = sectionName
+		} else if strings.Contains(line, "=") {
+
+			if len(ini.data) == 0 { // if no sections add yet
+				return ErrNoGlobalDataAllowed
+			}
+
+			splitRet := strings.SplitN(line, "=", 2)
+			key := splitRet[0]
+			value := splitRet[1]
+
+			if key == "" {
+				return fmt.Errorf("%w: at line %q", ErrKeyCantBeEmpty, line)
+			}
+			_, ok := ini.data[currentSectionName][key]
+			if ok {
+				return fmt.Errorf("%w, key = %q", ErrKeyMustBeUnique, key)
+			}
+
+			ini.data[currentSectionName][key] = value
+		} else {
+			return fmt.Errorf("%w: at line %q", ErrInvalidFormat, line)
 		}
 	}
+
 	return nil
 }
 
@@ -78,95 +94,81 @@ func (ini *INIParser) LoadFromString(str string) error {
 
 // LoadFromFile loads the given string to the parser.
 func (ini *INIParser) LoadFromFile(filePath string) error {
-	_, err := os.Stat(filePath)
-	if err != nil {
-		return err
-	}
 	if fileExt := filepath.Ext(filePath); fileExt != ".ini" {
 		return fmt.Errorf("%w: %s", ErrInvalidFileExtension, fileExt)
 	}
 
-	reader, err := os.Open(filePath)
+	f, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
-	defer reader.Close()
-	return ini.loadData(reader)
+	defer f.Close()
+
+	return ini.loadData(f)
 }
 
 // GetSectionNames gets slice of section names of loaded data.
 func (ini *INIParser) GetSectionNames() []string {
-	if ini.data == nil {
-		ini.data = map[string]*section{}
-	}
-
 	keys := []string{}
 	for k := range ini.data {
 		keys = append(keys, k)
 	}
+
 	return keys
 }
 
 // GetSections gets ini data parsed as 'map[string]map[string]string'.
 func (ini *INIParser) GetSections() map[string]map[string]string {
-	if ini.data == nil {
-		ini.data = map[string]*section{}
+	serializedINI := map[string]map[string]string{}
+
+	for sectionName, section := range ini.data {
+		serializedINI[sectionName] = map[string]string{}
+		for k, v := range section {
+			serializedINI[sectionName][k] = v
+		}
 	}
 
-	serializedINI := map[string]map[string]string{}
-	for k, v := range ini.data {
-		serializedINI[k] = v.getSection()
-	}
 	return serializedINI
 }
 
 // Get gets value given section name and key.
-// returns tuple of (value, true) incase value found.
-// returns tuple of (value, false) incase value is not found.
 func (ini *INIParser) Get(sectionName, key string) (string, bool) {
-	if ini.data == nil {
-		ini.data = map[string]*section{}
-	}
-
 	if ini.data[sectionName] == nil {
 		return "", false
 	}
-	return ini.data[sectionName].get(key)
+
+	value, ok := ini.data[sectionName][key]
+	return value, ok
 }
 
 // Set sets or updates given section name and key.
 // creates new section and new key if not exist.
 func (ini *INIParser) Set(sectionName, key, value string) error {
-	if ini.data == nil {
-		ini.data = map[string]*section{}
-	}
-
-	sectionName = strings.TrimSpace(sectionName)
-	if ini.data[sectionName] == nil {
-		if sectionName == "" {
-			return ErrSectionNameCantBeEmpty
-		}
-		ini.data[sectionName] = &section{}
+	if sectionName == "" {
+		return ErrSectionNameCantBeEmpty
 	}
 	if key == "" {
 		return ErrKeyCantBeEmpty
 	}
 
-	ini.data[sectionName].set(key, value)
+	if ini.data[sectionName] == nil {
+		ini.data[sectionName] = map[string]string{}
+	}
+	ini.data[sectionName][key] = value
+
 	return nil
 }
 
 // String converts loaded data to string.
 func (ini *INIParser) String() string {
-	if ini.data == nil {
-		ini.data = map[string]*section{}
+	str := ""
+	for sectionName, section := range ini.data {
+		str += fmt.Sprintf("[%v]\n", sectionName)
+		for k, v := range section {
+			str += fmt.Sprintf("%v=%v\n", k, v)
+		}
 	}
-
-	var str string
-	for k, v := range ini.data {
-		str += "[" + k + "]\n"
-		str += v.string()
-	}
+	
 	return str
 }
 
@@ -174,10 +176,6 @@ func (ini *INIParser) String() string {
 func (ini *INIParser) SaveToFile(filePath string) error {
 	if fileExt := filepath.Ext(filePath); fileExt != ".ini" {
 		return fmt.Errorf("%w: %s", ErrInvalidFileExtension, fileExt)
-	}
-
-	if ini.data == nil {
-		ini.data = map[string]*section{}
 	}
 
 	return os.WriteFile(filePath, []byte(ini.String()), 0644)
