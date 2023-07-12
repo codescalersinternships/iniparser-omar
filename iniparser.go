@@ -23,7 +23,7 @@ var (
 
 type section map[string]string
 
-// An INIParser provides parser to ini files.
+// INIParser provides parser to ini files.
 type INIParser struct {
 	data map[string]section
 }
@@ -35,6 +35,8 @@ func NewINIParser() INIParser {
 }
 
 func (ini *INIParser) loadData(reader io.Reader) error {
+	ini.data = map[string]section{}
+
 	fileScanner := bufio.NewScanner(reader)
 	fileScanner.Split(bufio.ScanLines)
 
@@ -57,13 +59,17 @@ func (ini *INIParser) loadData(reader io.Reader) error {
 				return fmt.Errorf("%w, section = %q", ErrSectionNameMustBeUnique, sectionName)
 			}
 
-			ini.data[sectionName] = map[string]string{}
+			ini.data[sectionName] = section{}
 			currentSectionName = sectionName
-		} else if strings.Contains(line, "=") {
 
+			continue
+		}
+
+		if strings.Contains(line, "=") {
 			if len(ini.data) == 0 { // if no sections add yet
 				return ErrNoGlobalDataAllowed
 			}
+			// now i'm sure that 'currentSectionName' has a value
 
 			splitRet := strings.SplitN(line, "=", 2)
 			key := splitRet[0]
@@ -78,9 +84,11 @@ func (ini *INIParser) loadData(reader io.Reader) error {
 			}
 
 			ini.data[currentSectionName][key] = value
-		} else {
-			return fmt.Errorf("%w: at line %q", ErrInvalidFormat, line)
+
+			continue
 		}
+
+		return fmt.Errorf("%w: at line %q", ErrInvalidFormat, line)
 	}
 
 	return nil
@@ -152,7 +160,7 @@ func (ini *INIParser) Set(sectionName, key, value string) error {
 	}
 
 	if ini.data[sectionName] == nil {
-		ini.data[sectionName] = map[string]string{}
+		ini.data[sectionName] = section{}
 	}
 	ini.data[sectionName][key] = value
 
@@ -168,7 +176,7 @@ func (ini *INIParser) String() string {
 			str += fmt.Sprintf("%v=%v\n", k, v)
 		}
 	}
-	
+
 	return str
 }
 
