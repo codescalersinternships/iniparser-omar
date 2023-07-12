@@ -28,8 +28,51 @@ To ensure proper usage and understanding of the INIParser library, the following
 
 2. **Key-Value Separator**: The key-value pairs in the INI files or strings are separated by the equals sign (=) character. This separator indicates the assignment of a value to a key.
 
-3. **Trimmed Keys, Values, and Section Headers**: The library trims any leading or trailing spaces from keys, values, and section headers. Additionally, empty keys, values, and section headers are not allowed. They must contain at least one non-space character.
+3. **Names of Section and keys**: Empty keys, and section headers are not allowed. They must contain at least one non-space character.
 
-4. **Comments**: Comments in the INI files or strings are only valid when placed at the beginning of a line. They are denoted by a semicolon (;) character. Comments can be used to provide explanatory or informational text but do not affect the parsing or functionality of the library.
+4. **Comments**: Comments in the INI files or strings are only valid when placed at the beginning of a line. They are denoted by a semicolon (;) or (#) character. Comments can be used to provide explanatory or informational text but do not affect the parsing or functionality of the library.
 
 Please consider these assumptions while using the INIParser library in your project.
+
+## Example
+Here's example of the provided methods API
+
+```go
+
+  import "github.com/codescalersinternships/iniparser-omar"
+
+  parser := NewINIParser()
+
+  // load ini from string
+  err := parser.LoadFromString("[section]\nkey=value\n")
+
+  // or you can load from file
+  err := parser.LoadFromFile("/path/to/file.ini")
+
+  // update or set new value
+  parser.Set("section name", "key", "value")
+
+  // get value and ok to check existence 
+  value, ok := parser.Get("section name", "key")
+
+  // get section names
+  sectionNames := parser.GetSectionNames()
+
+  // get the parsed data as map[string]map[string]string
+  parserData := parser.GetSections()
+
+  // get the parsed data as string
+  stringINI := parser.String()
+
+  // save parsed data to file
+  err := parser.SaveToFile("/path/to/file.ini")
+```
+
+## Test
+
+To run the automated tests for this project, follow these steps:
+
+1. Install the necessary dependencies by running `go get -d ./...`.
+2. Run the tests by running `go test ./...`.
+3. If all tests pass, the output should indicate that the tests have passed. If any tests fail, the output will provide information on which tests failed.
+
