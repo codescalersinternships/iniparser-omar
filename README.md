@@ -35,13 +35,35 @@ To ensure proper usage and understanding of the INIParser library, the following
 Please consider these assumptions while using the INIParser library in your project.
 
 ## Example
-Here's example of the provided methods API
+
+- Here's example of ini file
+
+```ini
+# comment
+
+[DEFAULT]
+ServerAliveInterval = 45
+Compression = yes
+CompressionLevel = 9
+; comment
+ForwardX11 = yes
+
+[forge.example]
+User = hg
+
+[topsecret.server.example]
+Port = 50022
+ForwardX11 = no
+```
+
+
+- Here's example of the provided methods API
 
 ```go
 
   import "github.com/codescalersinternships/iniparser-omar"
 
-  parser := NewINIParser()
+  parser := iniparser.NewINIParser()
 
   // load ini from string
   err := parser.LoadFromString("[section]\nkey=value\n")
@@ -58,7 +80,7 @@ Here's example of the provided methods API
   // get section names
   sectionNames := parser.GetSectionNames()
 
-  // get the parsed data as map[string]map[string]string
+  // get the parsed data as map[string]section
   parserData := parser.GetSections()
 
   // get the parsed data as string

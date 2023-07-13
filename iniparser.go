@@ -127,16 +127,7 @@ func (ini *INIParser) GetSectionNames() []string {
 
 // GetSections gets ini data parsed as 'map[string]section'.
 func (ini *INIParser) GetSections() map[string]section {
-	serializedINI := map[string]section{}
-
-	for secName, sec := range ini.data {
-		serializedINI[secName] = section{}
-		for k, v := range sec {
-			serializedINI[secName][k] = v
-		}
-	}
-
-	return serializedINI
+	return ini.data
 }
 
 // Get gets value given section name and key.
