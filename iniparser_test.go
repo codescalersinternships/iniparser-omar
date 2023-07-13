@@ -174,7 +174,7 @@ func TestGetSections(t *testing.T) {
 		ini := INIParser{data: dataSample}
 
 		got := ini.GetSections()
-		want := map[string]map[string]string{
+		want := map[string]section{
 			" section 1": {"key key ": " value value"},
 			"section 2":  {},
 			"section 3":  {"key": ""},
